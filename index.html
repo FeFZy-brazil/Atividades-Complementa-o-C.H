@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEXO — Aventura dos Números</title>
+<style>
+*{box-sizing:border-box;margin:0}
+:root{--bg:#0e1633;--card:#1b2652;--c2:#2c3b82;--tx:#f3f6ff;--ac:#ffd24d;--ok:#3ddc97;--no:#ff6b6b;--bl:#4fc3ff}
+body{font:16px/1.4 system-ui,sans-serif;background:radial-gradient(circle at 20% 0,#2a3a8f,var(--bg) 60%) fixed;color:var(--tx);min-height:100vh}
+#app{max-width:760px;margin:auto;padding:14px;animation:in .35s}
+@keyframes in{from{opacity:0;transform:translateY(10px)}}
+@keyframes hop{50%{transform:translateY(-14px)}}
+@keyframes shk{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@keyframes atk{50%{transform:scale(1.35) translateY(20px)}}
+@keyframes flip{from{transform:rotateY(90deg)}}
+.card{background:var(--card);border-radius:20px;padding:16px;box-shadow:0 6px 0 #0a1030,0 10px 24px #0006;margin:10px 0}
+button,input{font:inherit;color:var(--tx)}
+button{font-weight:800;background:var(--c2);border:0;border-radius:16px;padding:12px 16px;cursor:pointer;box-shadow:0 5px 0 #0a1030;transition:.1s;min-height:48px}
+button:hover{transform:translateY(-2px)}button:active{transform:translateY(3px);box-shadow:0 2px 0 #0a1030}
+button:focus-visible,input:focus-visible{outline:3px solid var(--ac)}
+button.p{background:var(--ac);color:#2b2100}
+button:disabled{opacity:.5;cursor:not-allowed}
+input{background:#0a1030;border:2px solid var(--c2);border-radius:14px;padding:12px;text-align:center}
+.g{display:grid;gap:10px}.g2{grid-template-columns:1fr 1fr}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.tc{text-align:center}
+.bar,.trk{height:14px;background:#0a1030;border-radius:9px;overflow:hidden;margin:6px 0}
+.trk{overflow:visible;position:relative;margin:20px 0 8px}
+.bar i,.trk i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--bl),var(--ok));transition:width .4s}
+.trk span{position:absolute;top:-18px;font-size:26px;transition:left .4s}
+.q{font-size:clamp(34px,9vw,56px);font-weight:900;margin:6px 0}
+.opt{font-size:24px}
+.ok{background:var(--ok)!important;color:#04301e!important}.no{background:var(--no)!important;color:#3a0707!important}
+.opt:disabled{opacity:1}
+.hit{animation:shk .4s;filter:brightness(2)}.atk{animation:atk .5s}
+.bot.happy{animation:hop .5s}.bot.sad{animation:shk .4s}
+.mc{height:78px;font-size:clamp(15px,4.5vw,22px);padding:4px}
+.mc.up{background:#fff;color:#1b2652;animation:flip .3s}
+.toast{position:fixed;left:50%;transform:translateX(-50%);background:var(--ac);color:#2b2100;padding:10px 18px;border-radius:14px;font-weight:800;z-index:9;animation:in .3s}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body><main id="app"></main>
+<script>
+/* ===== NEXO — Aventura dos Números (HTML5 + JS puro) =====
+   Seções: dados > estado/save > gerador > tutor/adaptação > motor de partida > modos > telas */
+const $=s=>document.querySelector(s),r=(a,b)=>Math.floor(Math.random()*(b-a+1))+a,cl=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[r(0,a.length-1)];
+const OPN=['Adição','Subtração','Multiplicação','Divisão'],SY=['+','−','×','÷'];
+const REG=[{n:'Ilha da Adição',e:'🏝️'},{n:'Deserto da Subtração',e:'🏜️'},{n:'Floresta da Multiplicação',e:'🌴'},{n:'Reino da Divisão',e:'🏰'}];
+const BOSS=[{n:'Somax',e:'👾'},{n:'Subtrax',e:'🦂'},{n:'Multiplox',e:'🦍'},{n:'Rei Divisor',e:'🐉'}];
+const OBJ=['Atravesse a ponte dos números.','Encontre o tesouro escondido.','Escape do vale dos enigmas.','Abra o portal final da região!'];
+const MEDAL=['🥇 Medalha da Ilha','🥇 Medalha do Deserto','🥇 Medalha da Floresta','👑 Medalha do Reino'];
+const ITEMS=[{id:'c1',t:'color',n:'Robô Rosa',v:'#ff7aa8',p:30},{id:'c2',t:'color',n:'Robô Verde',v:'#5be38a',p:30},{id:'c3',t:'color',n:'Robô Roxo',v:'#b58bff',p:40},
+{id:'h1',t:'hat',n:'Cartola',v:'🎩',p:50},{id:'h2',t:'hat',n:'Coroa',v:'👑',p:120},{id:'h3',t:'hat',n:'Boné',v:'🧢',p:40},{id:'h4',t:'hat',n:'Capelo',v:'🎓',p:60},
+{id:'a1',t:'aura',n:'Aura Dourada',v:'#ffd24d',p:80},{id:'a2',t:'aura',n:'Aura Ciano',v:'#4fc3ff',p:80}];
+const ACH=[['first','Primeiro Passo','Complete a primeira fase','🥾'],['fast','Mente Rápida','5 acertos seguidos','⚡'],['mul','Mestre da Multiplicação','20 multiplicações corretas','✖️'],['exp','Explorador','Desbloqueie todas as regiões','🧭'],['boss','Guardião Derrotado','Vença um chefão','🏆'],['perf','Perfeição','Conclua uma fase sem errar','💎'],['race','Velocista','200+ pontos na Corrida','🏁'],['mem','Memória de Elefante','Conclua a Memória','🐘']];
+
+/* ---- Estado e persistência (localStorage com tratamento de erro) ---- */
+const DEF=()=>({name:'',xp:0,coins:0,done:[0,0,0,0],boss:[0,0,0,0],best:{},ach:{},own:{},eq:{},ops:[0,1,2,3].map(()=>({a:0,c:0})),bs:0,hist:[],snd:1});
+function load(){try{return Object.assign(DEF(),JSON.parse(localStorage.getItem('nexo')||'{}'))}catch(e){return DEF()}}
+function save(){try{localStorage.setItem('nexo',JSON.stringify(S))}catch(e){}}
+let S=load(),G=null,T=null,RS=null,M=null,AC=null;
+
+/* ---- Utilitários: som, aviso, nível, XP ---- */
+function tone(f,d=.15,t='sine'){if(!S.snd)return;try{AC=AC||new AudioContext();const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.value=.07;o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+function toast(t){const n=document.querySelectorAll('.toast').length,d=document.createElement('div');d.className='toast';d.style.top=(14+n*52)+'px';d.textContent=t;document.body.append(d);setTimeout(()=>d.remove(),2400)}
+function lv(x=S.xp){let l=1,n=100;while(x>=n){x-=n;l++;n=100+l*30}return{l,c:x,n}}
+function award(xp,co){const b=lv().l;S.xp+=xp;S.coins+=co;if(lv().l>b){toast('⬆️ Subiu para o nível '+lv().l+'!');tone(660,.3)}save()}
+function record(c,t){S.hist.push(t?Math.round(c/t*100):0);S.hist=S.hist.slice(-12)}
+function chk(x={}){const c={first:S.done.some(v=>v>0),fast:S.bs>=5,mul:S.ops[2].c>=20,exp:S.done[2]>=4,boss:S.boss.some(v=>v),perf:x.perf,race:x.race>=200,mem:x.mem};
+ ACH.forEach(a=>{if(c[a[0]]&&!S.ach[a[0]]){S.ach[a[0]]=1;S.coins+=20;toast(a[3]+' Conquista: '+a[1]+' (+20 ◎)');tone(990,.3)}});save()}
+
+/* ---- Mascote (SVG) com humor e itens equipados ---- */
+const eqv=t=>(ITEMS.find(i=>i.id==S.eq[t])||{}).v;
+function bot(m='ok',z=80){const c=eqv('color')||'#4fc3ff',h=eqv('hat'),a=eqv('aura');
+ const ey=m=='happy'?'<path d="M32 52 Q38 42 44 52M56 52 Q62 42 68 52" stroke="#7df" stroke-width="4" fill="none"/>':m=='sad'?'<path d="M32 46 L44 53M68 46 L56 53" stroke="#7df" stroke-width="4"/>':'<circle cx="38" cy="50" r="6" fill="#7df"/><circle cx="62" cy="50" r="6" fill="#7df"/>';
+ const mo=m=='happy'?'M40 64 Q50 74 60 64':m=='sad'?'M40 68 Q50 60 60 68':'M42 66 H58';
+ return `<svg class="bot ${m}" width="${z}" height="${z}" viewBox="0 0 100 100" style="${a?'filter:drop-shadow(0 0 8px '+a+')':''}" aria-hidden="true"><path d="M50 16V26" stroke="#fff" stroke-width="3"/><circle cx="50" cy="14" r="5" fill="#ffd24d"/><rect x="16" y="26" width="68" height="58" rx="20" fill="${c}"/><rect x="24" y="36" width="52" height="38" rx="14" fill="#0b1230"/>${ey}<path d="${mo}" stroke="#7df" stroke-width="4" fill="none" stroke-linecap="round"/>${h?`<text x="50" y="24" font-size="28" text-anchor="middle">${h}</text>`:''}</svg>`}
+
+/* ---- Gerador dinâmico de questões (sem banco de perguntas) ---- */
+const P={add:[9,50,400,900],sub:[12,60,500,999],lo:[3,20,100,300],ml:[5,9,16,24],dv:[5,9,14,18],dq:[5,9,14,24]};
+const CTX=[(a,b)=>`Léo tem ${a} figurinhas e ganha ${b}. Quantas tem agora?`,(a,b)=>`Havia ${a} moedas no cofre e ${b} foram gastas. Quantas restam?`,(a,b)=>`São ${a} caixas com ${b} bolas em cada. Quantas bolas no total?`,(a,b)=>`${a} doces divididos igualmente entre ${b} amigos. Quantos cada um recebe?`];
+let recent=[];
+function gen(op,L){let a,b,ans,ex,k=0;do{
+ if(op==0){const m=P.add[L-1],lo=L==1?1:5;a=r(lo,m);b=r(lo,m);ans=a+b}
+ else if(op==1){a=r(P.lo[L-1],P.sub[L-1]);b=r(1,a-1);ans=a-b}      /* nunca negativo */
+ else if(op==2){a=r(2,P.ml[L-1]);b=r(2,P.ml[L-1]);ans=a*b}
+ else{b=r(2,P.dv[L-1]);ans=r(2,P.dq[L-1]);a=b*ans}                  /* divisão sempre exata */
+ ex=`${a} ${SY[op]} ${b}`}while(recent.includes(ex)&&++k<25);
+ recent.push(ex);if(recent.length>10)recent.shift();
+ return{op,L,a,b,ans,expr:ex,txt:Math.random()<.35?CTX[op](a,b):''}}
+function opts(q){const s=new Set([q.ans]),d=Math.max(2,Math.round(q.ans*.15));let g=0,j=1;
+ while(s.size<4&&g++<60){let v=q.ans+r(-d-3,d+3);if(r(0,3)==0)v=q.ans+(r(0,1)?10:-10);if(v>=0&&v!=q.ans)s.add(v)}
+ while(s.size<4)s.add(q.ans+10*j++);return[...s].sort(()=>Math.random()-.5)}
+
+/* ---- Tutor local: pistas progressivas (s=0 conceito, s=1 passo a passo) ---- */
+function tip(q,s){const{a,b,ans,op}=q,t=b-b%10,u=b%10;
+ if(op==0)return s?(t?`${a} + ${t} = ${a+t}. Depois some ${u}.`:`Conte ${b} passos a partir de ${a}.`):`Comece em ${a} e acrescente ${b}, por partes (dezenas e unidades).`;
+ if(op==1)return s?`Pergunte: ${b} + ? = ${a}. Quanto falta de ${b} até ${a}?`:`Subtrair é tirar: de ${a}, tire ${b}. Quanto sobra?`;
+ if(op==2)return s?(t?`${a}×${t} = ${a*t} e ${a}×${u} = ${a*u}. Agora some os dois.`:`${Array(b).fill(a).join(' + ')} = ?`):`${a} × ${b} é somar o ${a}, ${b} vezes.`;
+ return s?`Teste: ${b} × ${ans-1} = ${b*(ans-1)}. Quanto falta para chegar a ${a}?`:`Dividir é repartir igualmente. Pense: ${b} × ? = ${a}.`}
+const EM=['Atenção ao "vai um"!','Tire o menor número do maior.','A tabuada ajuda: some a conta anterior.','Confira: resultado × divisor = dividendo.'];
+
+/* ---- Motor de partida (compartilhado) + adaptação de dificuldade ---- */
+function play(c){G=Object.assign(c,{c:0,e:0,xp:0,streak:0,ad:0,wn:[],alive:1,tm:0});ask()}
+function ask(){const effL=cl(G.base()+G.ad,1,4);G.q=gen(G.op(),effL);G.lock=0;G.h=0;G.o=opts(G.q);
+ R(`<div id="hud" class="card">${G.hud()}</div><div class="card tc"><div id="mb">${bot('ok',70)}</div><div>${G.q.txt}</div><div class="q" aria-live="polite">${G.q.expr} = ?</div><div id="tp" style="min-height:48px" aria-live="polite"></div><div class="g g2">${G.o.map((v,i)=>`<button class="opt" id="o${i}" onclick="ans(${i})">${i+1}) ${v}</button>`).join('')}</div><br><button onclick="hint()">💡 Dica do Nexo</button></div>`)}
+function hint(){if(!G||G.lock)return;G.h=Math.min(G.h+1,2);$('#mb').innerHTML=bot('ok',70);$('#tp').innerHTML='💡 '+tip(G.q,G.h-1)+' <small>(dica: −50% XP)</small>'}
+function ans(i){if(!G||G.lock||!G.alive)return;G.lock=1;const q=G.q,ok=G.o[i]==q.ans,st=S.ops[q.op];st.a++;let gain=0;
+ document.querySelectorAll('.opt').forEach((b,j)=>{b.disabled=true;const c=G.o[j]==q.ans;if(c)b.classList.add('ok');else if(j==i)b.classList.add('no');b.textContent=(c?'✔ ':j==i?'✘ ':'')+b.textContent});
+ if(ok){st.c++;G.streak++;G.c++;S.bs=Math.max(S.bs,G.streak);gain=Math.round((8+4*q.L+Math.min(G.streak,10)*2)/(G.h?2:1));G.xp+=gain;tone(740)}
+ else{G.streak=0;G.e++;tone(200,.3,'sawtooth')}
+ /* adaptação: olha as últimas 5 respostas (precisão + sequência) */
+ G.wn.push(ok?1:0);if(G.wn.length>5)G.wn.shift();const s=G.wn.reduce((x,y)=>x+y,0),w=G.wn.length-s;let ad='';
+ if(G.wn.length==5&&s==5&&G.ad<1){G.ad++;G.wn=[];ad='⬆️ Você está voando! Desafios mais difíceis.'}
+ else if(w>=3&&G.ad>-1){G.ad--;G.wn=[];ad='🧭 Vamos reforçar o básico por um momento.'}
+ $('#mb').innerHTML=bot(ok?'happy':'sad',70);
+ $('#tp').innerHTML=ok?`<b>✔ ${pick(['Isso aí!','Mandou bem!','Perfeito!'])} +${gain} XP</b> ${ad}`:`<b>✘ Quase! A resposta é ${q.ans}.</b><br>${q.expr} = ${q.ans}. ${tip(q,1)} ${EM[q.op]} ${ad}`;
+ const fin=G.res(ok,q);$('#hud').innerHTML=G.hud();
+ G.tm=setTimeout(()=>fin?G.end():ask(),ok?700:(G.fast?1000:3000))}
+function stopT(){clearInterval(T);if(G)clearTimeout(G.tm)}
+document.addEventListener('keydown',e=>{if(G&&G.alive&&/^[1-4]$/.test(e.key)&&$('#o0'))ans(+e.key-1)});
+
+/* ---- Telas: base ---- */
+function R(h){const a=$('#app');a.innerHTML=h;a.style.animation='none';void a.offsetWidth;a.style.animation=''}
+const track=f=>`<div class="trk"><i style="width:${f*100}%"></i><span style="left:calc(${f*92}% )">🤖</span></div>`;
+function title(){stopT();G=null;R(`<div class="tc" style="padding-top:24px">${bot('happy',150)}<h1 style="font-size:54px;color:var(--ac)">NEXO</h1><p><b>Aventura dos Números</b></p><p>Explore ilhas, derrote guardiões e vire mestre da matemática!</p><br><input id="nm" maxlength="14" placeholder="Seu apelido" value="${S.name}" onkeydown="if(event.key=='Enter')start()"><br><br><button class="p" onclick="start()">▶ Jogar</button></div>`)}
+function start(){S.name=($('#nm').value.trim()||'Explorador').slice(0,14).replace(/[<>&]/g,'');save();menu()}
+function rec(){const v=S.ops.map((o,i)=>({i,a:o.a,p:o.a?o.c/o.a:0})).filter(x=>x.a>=5).sort((x,y)=>y.p-x.p);
+ if(!v.length)return'Comece pela Ilha da Adição e ganhe suas primeiras Nexcoins!';const b=v[0],w=v[v.length-1];
+ if(w.p<.7&&w.i!=b.i)return`Que tal praticar um pouco mais de ${OPN[w.i].toLowerCase()}? Acertos: ${Math.round(w.p*100)}%.`;
+ return`Você está evoluindo muito bem em ${OPN[b.i].toLowerCase()}! (${Math.round(b.p*100)}% de acertos)`}
+function menu(){stopT();G=null;const l=lv();
+ R(`<div class="card row"><div style="display:flex;gap:10px;align-items:center">${bot('ok',64)}<div><b>Olá, ${S.name||'Explorador'}!</b><br>Nível ${l.l} · ◎ ${S.coins} Nexcoins</div></div><button onclick="snd()" aria-label="Som">${S.snd?'🔊 Som':'🔇 Mudo'}</button></div>
+ <div class="card"><small>XP ${l.c}/${l.n} para o nível ${l.l+1}</small><div class="bar"><i style="width:${l.c/l.n*100}%"></i></div><p style="margin-top:8px">💡 ${rec()}</p><small>Aventura: ${S.done.reduce((a,b)=>a+b,0)}/16 fases</small></div>
+ <div class="g g2"><button class="p" onclick="map()">🗺️ Expedição Nexo</button><button class="p" onclick="raceSel()">🏁 Corrida Matemática</button><button class="p" onclick="memSel()">🧠 Memória Numérica</button><button class="p" onclick="bossSel()">⚔️ Guardiões</button><button onclick="ach()">🏅 Conquistas</button><button onclick="shop()">🛒 Loja</button><button onclick="stats()">📊 Estatísticas</button><button onclick="reset()">♻️ Apagar progresso</button></div>`)}
+function snd(){S.snd=S.snd?0:1;save();menu()}
+function reset(){if(confirm('Apagar TODO o progresso? Isso não pode ser desfeito.')){try{localStorage.removeItem('nexo')}catch(e){}S=DEF();title()}}
+let RSX;function result(o){stopT();G=null;RS=o;
+ R(`<div class="card tc">${bot(o.win?'happy':'sad',100)}<h2>${o.win?'🎉':'💪'} ${o.title}</h2>${o.medal?`<div style="font-size:30px">${o.medal}</div>`:''}<p>Pontos: <b>${o.sc}</b> · ✔ ${o.c} · ✘ ${o.e} · Precisão: <b>${o.c+o.e?Math.round(o.c/(o.c+o.e)*100):0}%</b></p><p>+${o.xp} XP · +${o.co} ◎ Nexcoins</p>${o.extra||''}</div><div class="g"><button class="p" onclick="RS.again()">🔁 Jogar de novo</button><button onclick="menu()">🏠 Menu</button></div>`)}
+
+/* ---- MODO 1: Expedição Nexo ---- */
+function map(){R(`<h2>🗺️ Mapa de Nexo</h2>${REG.map((g,i)=>{const u=i==0||S.done[i-1]>=4;return`<div class="card row" style="opacity:${u?1:.65}"><div><b>${g.e} ${g.n}</b><br><small>${u?`Fases: ${S.done[i]}/4 ${S.done[i]>=4?'🏅':''}`:`🔒 Conclua as 4 fases de ${REG[i-1].n}`}</small></div><button ${u?'':'disabled'} onclick="phases(${i})">${u?'Entrar':'🔒 Bloqueada'}</button></div>`}).join('')}<button onclick="menu()">← Menu</button>`)}
+function phases(i){R(`<h2>${REG[i].e} ${REG[i].n}</h2><div class="g g2">${[0,1,2,3].map(p=>{const u=p<=S.done[i];return`<button ${u?'':'disabled'} class="${p==S.done[i]?'p':''}" onclick="phase(${i},${p})">${u?(p<S.done[i]?'✅ ':'▶ ')+'Fase '+(p+1)+(p==3?' ⭐ Especial':''):'🔒 Fase '+(p+1)}</button>`}).join('')}</div><br><button onclick="map()">← Mapa</button>`)}
+function phase(rg,p){const N=p==3?7:5;
+ play({op:()=>rg,base:()=>p+1,lives:3,n:0,
+ hud(){return`<div class="row"><b>${REG[rg].e} Fase ${p+1}</b><span>${'❤️'.repeat(this.lives)||'💔'}</span><span>✔ ${this.c} ✘ ${this.e}</span></div>${track(this.n/N)}<small>🎯 ${OBJ[p]} (${this.n}/${N})</small>`},
+ res(ok){if(ok)this.n++;else this.lives--;return this.n>=N||this.lives<=0},
+ end(){const win=this.n>=N,perf=win&&this.e==0,first=win&&p+1>S.done[rg];let xp=this.xp,co=0;
+  if(win){xp+=30;co=15+p*5;S.done[rg]=Math.max(S.done[rg],p+1);if(first&&p==3&&rg<3)toast('🔓 Nova região desbloqueada!')}
+  record(this.c,this.c+this.e);const o={win,title:win?'Fase concluída!':'Sem vidas! Tente de novo.',sc:this.xp,c:this.c,e:this.e,xp,co,medal:win&&p==3?MEDAL[rg]:'',again:()=>phase(rg,p)};
+  award(xp,co);chk({perf});result(o)}})}
+
+/* ---- MODO 2: Corrida Matemática ---- */
+function raceSel(){R(`<h2>🏁 Corrida Matemática</h2><div class="card">Responda o máximo que puder! A cada 3 acertos seguidos o multiplicador sobe (até x5). Erros zeram o combo, mas a corrida continua.</div><div class="g">${[30,60,90].map(d=>`<button class="p" onclick="race(${d})">${d} segundos — Recorde: ${S.best['r'+d]||0}</button>`).join('')}</div><br><button onclick="menu()">← Menu</button>`)}
+function race(d){let left=d*1000;const mult=s=>1+Math.min(4,Math.floor(s/3));
+ play({op:()=>r(0,3),base:()=>2,fast:1,sc:0,
+ hud(){return`<div class="row"><b>⏱ ${Math.ceil(left/1000)}s</b><b>⭐ ${this.sc}</b><b>🔥 x${mult(this.streak)} · ${this.streak} seguidas</b></div><div class="bar"><i style="width:${left/d/10}%;transition:none"></i></div>`},
+ res(ok,q){if(ok)this.sc+=10*q.L*mult(this.streak);return false},
+ end(){if(!this.alive)return;this.alive=0;stopT();const t=this.c+this.e,acc=t?this.c/t:0,bonus=Math.round(this.sc*acc*.2),tot=this.sc+bonus,k='r'+d,nr=tot>(S.best[k]||0);
+  if(nr)S.best[k]=tot;record(this.c,t);const xp=this.xp,co=Math.floor(tot/40)+3;award(xp,co);chk({race:tot});
+  result({win:true,title:nr?'Novo recorde!':'Tempo esgotado!',sc:tot,c:this.c,e:this.e,xp,co,extra:`<p>Pontos: ${this.sc} + bônus de precisão ${bonus}</p><p>Recorde: ${S.best[k]}</p>`,again:()=>race(d)})}});
+ T=setInterval(()=>{if(!G||!G.alive)return;left-=100;if(left<=0){left=0;clearTimeout(G.tm);G.lock=1;G.end();return}const h=$('#hud');if(h)h.innerHTML=G.hud()},100)}
+
+/* ---- MODO 3: Memória Numérica ---- */
+function memSel(){R(`<h2>🧠 Memória Numérica</h2><div class="card">Una cada conta ao seu resultado (ex.: 8 × 4 e 32).</div><div class="g"><button class="p" onclick="mem(4,1)">Fácil — 4 pares</button><button class="p" onclick="mem(6,2)">Médio — 6 pares</button><button class="p" onclick="mem(8,3)">Difícil — 8 pares</button></div><br><button onclick="menu()">← Menu</button>`)}
+function mem(np,L){stopT();G=null;const used=new Set(),cs=[];let k=0,i=0;
+ while(i<np&&k++<300){const q=gen(i%4,L);if(used.has(q.ans))continue;used.add(q.ans);cs.push({id:i,t:q.expr},{id:i,t:String(q.ans)});i++}
+ cs.sort(()=>Math.random()-.5);M={cs,np,up:[],found:0,tries:0,t0:Date.now(),lock:0,np2:np,L};
+ R(`<div class="card row"><b>🔁 Tentativas: <span id="mtr">0</span></b><b>✔ Pares: <span id="mf">0</span>/${np}</b><b>⏱ <span id="mt">0</span>s</b></div><div class="g" style="grid-template-columns:repeat(4,1fr)">${cs.map((c,j)=>`<button class="mc" id="m${j}" onclick="flip(${j})" aria-label="Carta ${j+1}">?</button>`).join('')}</div><br><button onclick="menu()">← Menu</button>`);
+ T=setInterval(()=>{const e=$('#mt');if(e)e.textContent=Math.floor((Date.now()-M.t0)/1000)},500)}
+function flip(j){if(!M||M.lock||M.up.includes(j)||$('#m'+j).dataset.d)return;const b=$('#m'+j);b.textContent=M.cs[j].t;b.classList.add('up');M.up.push(j);tone(520,.08);
+ if(M.up.length<2)return;M.tries++;$('#mtr').textContent=M.tries;const[x,y]=M.up,A=$('#m'+x),B=$('#m'+y);
+ if(M.cs[x].id==M.cs[y].id){[A,B].forEach(e=>{e.classList.add('ok');e.dataset.d=1;e.textContent='✔ '+e.textContent});M.up=[];M.found++;$('#mf').textContent=M.found;tone(780);if(M.found==M.np)memEnd()}
+ else{M.lock=1;[A,B].forEach(e=>e.classList.add('no'));tone(220,.2,'sawtooth');setTimeout(()=>{if(!$('#m'+x))return;[A,B].forEach(e=>{e.classList.remove('up','no');e.textContent='?'});M.up=[];M.lock=0},900)}}
+function memEnd(){stopT();const s=Math.floor((Date.now()-M.t0)/1000),np=M.np,L=M.L,sc=Math.max(20,np*100-(M.tries-np)*15-s),xp=Math.floor(sc/5),co=5+np*2,k='m'+np,nr=sc>(S.best[k]||0);
+ if(nr)S.best[k]=sc;record(np,M.tries);award(xp,co);chk({mem:1});
+ result({win:true,title:nr?'Novo recorde!':'Todos os pares!',sc,c:np,e:M.tries-np,xp,co,extra:`<p>Tentativas: ${M.tries} · Tempo: ${s}s · Recorde: ${S.best[k]}</p>`,again:()=>mem(np,L)})}
+
+/* ---- MODO 4: Desafio dos Guardiões ---- */
+function bossSel(){R(`<h2>⚔️ Desafio dos Guardiões</h2>${BOSS.map((b,i)=>{const u=i==0||S.done[i-1]>=4;return`<div class="card row" style="opacity:${u?1:.65}"><div><span style="font-size:34px">${b.e}</span> <b>${b.n}</b><br><small>${u?(S.boss[i]?'✅ Derrotado':'Desafio disponível'):'🔒 Conclua a região anterior na Expedição'}</small></div><button ${u?'':'disabled'} onclick="boss(${i})">${u?'Lutar':'🔒'}</button></div>`}).join('')}<button onclick="menu()">← Menu</button>`)}
+function boss(i){const N=5+i;
+ play({op:()=>i,base:()=>i+1,hp:N,me:3,anim:'',
+ hud(){const a=this.anim=='atk'?'💥 O guardião atacou!':this.anim=='hit'?'⚔️ Golpe certeiro!':'Responda para atacar!';return`<div class="tc"><div style="font-size:72px;display:inline-block" class="${this.anim}">${BOSS[i].e}</div><br><b>${BOSS[i].n}</b> — ${this.hp}/${N} de energia<div class="bar"><i style="width:${this.hp/N*100}%;background:var(--no)"></i></div><div class="row"><span>${bot('ok',36)} Você ${'❤️'.repeat(this.me)||'💔'}</span><span>${a}</span></div></div>`},
+ res(ok){if(ok){this.hp--;this.anim='hit'}else{this.me--;this.anim='atk'}return this.hp<=0||this.me<=0},
+ end(){const win=this.hp<=0;let xp=this.xp,co=0;if(win){xp+=60;co=40+10*i;S.boss[i]=1}
+  record(this.c,this.c+this.e);award(xp,co);chk();result({win,title:win?`${BOSS[i].n} foi derrotado!`:'O guardião venceu desta vez…',medal:win?'🏆 Troféu de '+BOSS[i].n:'',sc:this.xp,c:this.c,e:this.e,xp,co,again:()=>boss(i)})}})}
+
+/* ---- Loja, conquistas e estatísticas ---- */
+function shop(){R(`<h2>🛒 Loja</h2><div class="card row"><b>◎ ${S.coins} Nexcoins</b>${bot('ok',56)}</div><div class="g g2">${ITEMS.map(it=>{const o=S.own[it.id],e=S.eq[it.t]==it.id;return`<div class="card tc">${it.t=='hat'?`<span style="font-size:30px">${it.v}</span>`:`<span style="display:inline-block;width:30px;height:30px;border-radius:50%;background:${it.v}"></span>`}<br><b>${it.n}</b><br><button onclick="buy('${it.id}')" ${!o&&S.coins<it.p?'style="opacity:.6"':''}>${e?'✔ Equipado':o?'Equipar':'◎ '+it.p}</button></div>`}).join('')}</div><button onclick="menu()">← Menu</button>`)}
+function buy(id){const it=ITEMS.find(x=>x.id==id);
+ if(S.own[id])S.eq[it.t]=S.eq[it.t]==id?null:id;
+ else if(S.coins>=it.p){S.coins-=it.p;S.own[id]=1;S.eq[it.t]=id;toast('Comprado: '+it.n);tone(880)}
+ else{toast('Faltam '+(it.p-S.coins)+' Nexcoins');tone(200);return}
+ save();shop()}
+function ach(){R(`<h2>🏅 Conquistas</h2>${ACH.map(a=>`<div class="card row" style="opacity:${S.ach[a[0]]?1:.6}"><span style="font-size:32px">${a[3]}</span><div style="flex:1"><b>${a[1]}</b><br><small>${a[2]}</small></div><b>${S.ach[a[0]]?'✔ Conquistada':'🔒'}</b></div>`).join('')}<button onclick="menu()">← Menu</button>`)}
+function stats(){const a=S.ops.reduce((x,o)=>x+o.a,0),c=S.ops.reduce((x,o)=>x+o.c,0),l=lv();
+ R(`<h2>📊 Estatísticas</h2><div class="card">Questões: <b>${a}</b> · Acertos: <b>${c}</b> (${a?Math.round(c/a*100):0}%)<br>Melhor sequência: <b>${S.bs}</b><br>Nível ${l.l} · ${S.xp} XP no total</div>
+ <div class="card">${S.ops.map((o,i)=>{const p=o.a?Math.round(o.c/o.a*100):0;return`<div>${SY[i]} ${OPN[i]}: <b>${p}%</b> (${o.c}/${o.a})<div class="bar"><i style="width:${p}%"></i></div></div>`}).join('')}</div>
+ <div class="card">Evolução — precisão das últimas partidas (%)<div style="display:flex;gap:4px;align-items:flex-end;height:80px;margin-top:6px">${S.hist.map(h=>`<div title="${h}%" style="flex:1;background:var(--bl);height:${Math.max(4,h*.75)}px;border-radius:4px"></div>`).join('')||'Jogue uma partida para ver o gráfico.'}</div></div><button onclick="menu()">← Menu</button>`)}
+
+title();
+</script></body></html>
